@@ -1,0 +1,58 @@
+# 复制成 config.yaml 后按需修改；config.yaml 不要提交到 git。
+
+# 要监听的群：群名（与微信显示一致）或 xxx@chatroom
+groups: []
+
+# 测试用：不要求是群的会话（私聊也行），验证完可清空
+test_chats: []
+
+bot:
+  # 人设：会原样放在每条 prompt 最前面。留空 = 普通群友口吻。
+  persona: |
+    你是群里的普通群友，说话自然、口语化，不装腔、不客服腔。
+  # 群里 @ 什么名字会触发；留空则用当前微信账号昵称
+  nicknames: []
+  # 前缀触发（不带 @）
+  trigger_prefixes: ["/ai"]
+  reply_prefix: ""
+  max_reply_chars: 120
+  context_messages: 8
+  ack_enabled: false
+  ack_text: "收到，我想一下…"
+  ack_after_sec: 6
+
+# 人格自动进化
+persona_evolution:
+  enabled: true
+  every_n_replies: 5
+  promote_hits: 3
+  promote_days: 2
+  max_soul_chars: 2000
+  max_changes_per_day: 3
+  max_memories: 200
+
+limits:
+  per_group_cooldown_sec: 15
+  per_group_per_hour: 30
+  global_per_hour: 60
+  skip_backlog_sec: 180
+  rhythm_profile: "calm"
+
+backend:
+  # workbuddy = 本机 WorkBuddy 账号（deepseek-v4.1-flash，2–5 秒，走账号积分）
+  # dsh       = DeepSeek Harness headless（10–60 秒，带工具）
+  # api       = DeepSeek 官方接口（需 DEEPSEEK_API_KEY）
+  mode: workbuddy
+  workbuddy_model: "deepseek-v4.1-flash"
+  # 留空 = 自动取 ~/.dsh/workbuddy-vault/cn 下最新的凭据
+  workbuddy_vault: ""
+  dsh_cmd: ""
+  dsh_profile: headless
+  work_dir: ""
+  timeout_sec: 120
+  api_base: "https://api.deepseek.com"
+  api_model: "deepseek-chat"
+  api_key_env: "DEEPSEEK_API_KEY"
+
+wechat:
+  send_verify: true

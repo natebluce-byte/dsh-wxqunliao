@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# 本机配置与运行数据
+config.yaml
+logs/
+state/
+wechatauto_logs/
+
+# 凭据
+.env
+*.local
