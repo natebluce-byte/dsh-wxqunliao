@@ -135,6 +135,27 @@ state/persona/
 
 想先只看不写：`persona_evolution.enabled: false`。
 
+## 表情包
+
+文字回复之后按概率补一张图（`state/stickers/`）：
+
+```
+怼_哼.png   怼_就这？.png   无语_无语.png
+笑_笑死.png  溜_溜了.png    赞_牛.png
+```
+
+- 文件名前缀就是情绪分类（怼 / 无语 / 笑 / 溜 / 赞），按回复里的关键词选；
+- 目录为空时，首次启动会用 Pillow 生成一组内置文字卡，开箱可用；
+- 想换成自己的图：直接往目录丢 `分类_名字.png|jpg|gif`，前缀对得上就会用；
+- 频率在 `config.yaml` 的 `stickers.chance`（默认 0.35），设 0 关闭；
+- 发送走 `quick_send_image`，和文字一样依赖微信窗口可被唤起。
+
+## 怼人开关
+
+人设里有一段 `【怼人开关：已开启（中档）】`：被调侃/冒犯时优先损回去、可以带贴吧味，但**不骂脏话、不追着骂、不人身攻击、十句最多损三句，损完给台阶**。
+
+想调强弱：直接改 `config.yaml` 里 `bot.persona` 的那一段（改成「轻微」或「关闭」），重启生效。群里的 `RULES.md` 仍然兜底，人设再凶也越不过底线。
+
 ## 每日自动签到
 
 `workbuddy_checkin.py` 调 `/v2/billing/meter/daily-checkin`，幂等（已签跳过）：

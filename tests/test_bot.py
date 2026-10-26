@@ -197,5 +197,30 @@ class TestGroupSafety(unittest.TestCase):
         self.assertFalse(b.group_chat_only)
 
 
+class TestStickers(unittest.TestCase):
+    def test_mood_mapping(self):
+        from stickers import StickerBook
+
+        book = StickerBook(Path("state/stickers"), chance=0.0)
+        self.assertEqual(book.mood_for("哼，才不是呢"), "怼")
+        self.assertEqual(book.mood_for("无语，服了"), "无语")
+        self.assertIsNone(book.mood_for("今天几号"))
+
+    def test_disabled_or_zero_chance(self):
+        from stickers import StickerBook
+
+        book = StickerBook(Path("state/stickers"), chance=0.0)
+        self.assertIsNone(book.pick("哼"))
+        self.assertIsNone(StickerBook(Path("state/stickers"), enabled=False).pick("哼"))
+
+    def test_pick_returns_existing_file(self):
+        from stickers import StickerBook
+
+        book = StickerBook(Path("state/stickers"), chance=1.0)
+        path = book.pick("哼，笨蛋")
+        self.assertIsNotNone(path)
+        self.assertTrue(path.exists())
+
+
 if __name__ == "__main__":
     unittest.main()

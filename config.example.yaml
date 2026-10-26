@@ -62,3 +62,8 @@ security:
   group_chat_only: true
   # 允许机器人自己用 Bing 做只读搜索（不经过本地 agent）
   web_lookup: true
+
+stickers:
+  # 文字回复之后，按概率补一张表情包（state/stickers/，没有图会生成内置文字卡）
+  enabled: true
+  chance: 0.35

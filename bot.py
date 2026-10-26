@@ -488,6 +488,19 @@ class Bot:
         # 群里只允许「聊天 + 查资料」：默认禁止 dsh（有本机权限的 agent）
         self.group_chat_only = bool(sec.get("group_chat_only", True))
         self.web_lookup = bool(sec.get("web_lookup", True))
+        self.stickers = None
+        st = nested(cfg, "stickers", {}) or {}
+        if st.get("enabled", True):
+            try:
+                from stickers import StickerBook  # type: ignore
+
+                self.stickers = StickerBook(
+                    STATE_DIR / "stickers",
+                    chance=float(st.get("chance", 0.3)),
+                )
+                log("表情包：已启用")
+            except Exception as exc:  # noqa: BLE001
+                log(f"表情包初始化失败（忽略）：{exc}", "warn")
         self._seen: set[tuple[str, int]] = set()
         self._seen_lock = threading.Lock()
         self._buffers: dict[str, Any] = {}
@@ -808,12 +821,32 @@ class Bot:
             message = str(resp.get("message", ""))
             if status == "失败" and "数据库未确认" in message:
                 log("已操作发送，但回读未确认（微信写库延迟，通常已送达）", "warn")
+                self._maybe_sticker(rule, text)
                 return
             if status == "失败":
                 log(f"发送失败：{message}", "error")
+            else:
+                self._maybe_sticker(rule, text)
             return
         if resp is False:
             log("发送返回失败（窗口被遮挡/锁屏？）", "error")
+            return
+        self._maybe_sticker(rule, text)
+
+    def _maybe_sticker(self, rule: GroupRule, text: str) -> None:
+        """文字发出去之后，按概率补一张表情包（失败只记日志）。"""
+        if self.stickers is None or text.startswith("我这边出错了"):
+            return
+        try:
+            path = self.stickers.pick(text)
+            if path is None:
+                return
+            from wechatauto.guia import quick_send_image  # type: ignore
+
+            quick_send_image(str(path), rule.nickname, verify=False)
+            log(f"[表情] 发了一张：{path.name}")
+        except Exception as exc:  # noqa: BLE001
+            log(f"表情包发送失败（忽略）：{exc}", "warn")
 
     # -- 主循环 ---------------------------------------------------
 
