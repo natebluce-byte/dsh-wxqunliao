@@ -110,6 +110,7 @@ class TestPrompt(unittest.TestCase):
             context="小明：在吗",
             ask="@小助手 你好",
             max_chars=600,
+            search_block="",
         )
         self.assertIn("测试群", text)
         self.assertIn("测试人设", text)
@@ -161,6 +162,39 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(bot.nested(cfg, "a.b.c"), 1)
         self.assertEqual(bot.nested(cfg, "a.b.x", "fallback"), "fallback")
         self.assertIsNone(bot.nested(cfg, "z.y"))
+
+
+class TestLookup(unittest.TestCase):
+    def test_extract_query(self):
+        import lookup
+
+        self.assertEqual(lookup.extract_query("查一下明天广州天气"), "明天广州天气")
+        self.assertEqual(lookup.extract_query("帮我查 金价"), "金价")
+        self.assertIsNone(lookup.extract_query("今天天气不错"))
+        self.assertIsNone(lookup.extract_query("你知道广州在哪吗"))
+
+    def test_render_empty(self):
+        import lookup
+
+        self.assertEqual(lookup.render([]), "")
+
+
+class TestGroupSafety(unittest.TestCase):
+    def test_dsh_blocked_in_group(self):
+        cfg = bot.default_config()
+        cfg["backend"]["mode"] = "dsh"
+        cfg["security"] = {"group_chat_only": True}
+        b = bot.Bot(cfg, dry_run=True)
+        with self.assertRaises(bot.DshError):
+            b.backend()
+
+    def test_dsh_allowed_when_disabled(self):
+        cfg = bot.default_config()
+        cfg["backend"]["mode"] = "dsh"
+        cfg["security"] = {"group_chat_only": False}
+        b = bot.Bot(cfg, dry_run=True)
+        # 不真正启动 dsh，只确认没有被安全策略拦住
+        self.assertFalse(b.group_chat_only)
 
 
 if __name__ == "__main__":

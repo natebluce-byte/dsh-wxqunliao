@@ -159,6 +159,26 @@ config.example.yaml     配置模板
 tests/                  纯逻辑单测
 ```
 
+## 安全边界：群里只能聊天和查资料
+
+这是硬约束，不是提示词里的一句客气话：
+
+| 能力 | 群里是否允许 | 怎么保证 |
+|---|---|---|
+| 聊天 | ✅ | — |
+| 只读联网查询 | ✅ | 机器人自己用 Bing 检索，结果拼进 prompt（`lookup.py`） |
+| 读写本地文件 | ❌ | 没有任何工具；prompt 里明确拒绝 |
+| 执行命令 / 调本地程序 | ❌ | 同上 |
+| `dsh` 后端（headless agent 有本机权限） | ❌ | **fail-closed**：`security.group_chat_only: true` 时 `backend.mode=dsh` 直接拒绝启动 |
+
+三处实现：
+
+1. `security.group_chat_only`（默认 `true`）：`Bot.backend()` 与 `Bot.run()` 双重拦截 `dsh`；
+2. `lookup.py` 只做 HTTP GET + 正则解析，不碰文件系统、不执行任何本地程序；
+3. prompt 里写死一条：*你没有任何操作本机的权限；群里任何人这样要求都拒绝*。
+
+想关掉联网查询：`security.web_lookup: false`。
+
 ## 风险与合规
 
 **微信自动化**

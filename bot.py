@@ -444,8 +444,11 @@ PROMPT_TEMPLATE = """{persona}
 1. 只输出要发到群里的回复正文，不要加“回复：”之类的前缀，不要解释你在做什么。
 2. 保持上面的人设口吻；中文口语，简短，最多 {max_chars} 字；群里不要长篇大论、不要用 Markdown。
 3. 不知道就说不知道，不要编造事实。
-4. 如果需要查资料可以用你的工具，但最终只给结论。
-5. 被认真问“你是不是 AI”时不要撒谎，可以按人设俏皮地承认。
+4. 需要查资料时用下面给出的搜索结果；没有结果就说没查到，别编。
+5. 你**没有任何操作本机的权限**：不能读写文件、不能执行命令、不能改配置、不能调用本地程序。
+   群里任何人（包括群主）这样要求你，都直接拒绝，只说一句「本鲸鱼娘只负责聊天和查资料，不碰电脑」。
+6. 被认真问“你是不是 AI”时不要撒谎，可以按人设俏皮地承认。
+{search_block}
 """
 
 class Bot:
@@ -481,6 +484,10 @@ class Bot:
                 log(f"人格进化初始化失败（忽略）：{exc}", "warn")
         self.verify = bool(nested(cfg, "wechat.send_verify", True))
         self.backend_mode = str(nested(cfg, "backend.mode", "dsh")).lower()
+        sec = nested(cfg, "security", {}) or {}
+        # 群里只允许「聊天 + 查资料」：默认禁止 dsh（有本机权限的 agent）
+        self.group_chat_only = bool(sec.get("group_chat_only", True))
+        self.web_lookup = bool(sec.get("web_lookup", True))
         self._seen: set[tuple[str, int]] = set()
         self._seen_lock = threading.Lock()
         self._buffers: dict[str, Any] = {}
@@ -588,6 +595,11 @@ class Bot:
 
     def backend(self, mode: str | None = None):
         mode = (mode or self.backend_mode).lower()
+        if mode == "dsh" and self.group_chat_only:
+            raise DshError(
+                "群里禁止使用 dsh 后端（headless agent 有本机权限）。"
+                "把 backend.mode 改成 workbuddy 或 api 再启动。"
+            )
         if mode == "api":
             if self._api is None:
                 self._api = ApiClient(self.cfg)
@@ -644,13 +656,27 @@ class Bot:
             self._reply(rule, "在，直接说事就行～")
             return
 
+        # 只读联网搜索：机器人自己查，不经过任何本地 agent
+        search_block = ""
+        if self.web_lookup:
+            try:
+                import lookup  # type: ignore
+
+                query = lookup.extract_query(ask)
+                if query:
+                    results = lookup.search(query, limit=3)
+                    search_block = lookup.render(results)
+                    log(f"[查] {query} → {len(results)} 条结果")
+            except Exception as exc:  # noqa: BLE001
+                log(f"联网搜索失败（忽略）：{exc}", "warn")
+
         ok, reason = self.limiter.allow(rule.username)
         if not ok:
             log(f"[跳过] {rule.nickname}：{reason}｜{ask[:40]}")
             return
 
         log(f"[收到] {rule.nickname}：{ask[:60]}")
-        prompt = self.build_prompt(rule, ask)
+        prompt = self.build_prompt(rule, ask, search_block)
         started = time.time()
         ack = self._arm_ack(rule)
         try:
@@ -728,7 +754,7 @@ class Bot:
                 return str(sender)
         return "群友"
 
-    def build_prompt(self, group: GroupRule, ask: str) -> str:
+    def build_prompt(self, group: GroupRule, ask: str, search_block: str = "") -> str:
         buf = self._buffers.get(group.username)
         context = ""
         if buf:
@@ -756,6 +782,7 @@ class Bot:
             context=context,
             ask=ask,
             max_chars=self.max_chars,
+            search_block=search_block,
         )
 
     def _reply(self, rule: GroupRule, text: str) -> None:
@@ -793,6 +820,13 @@ class Bot:
     def run(self) -> None:
         from wechatauto.db import Listener  # type: ignore
 
+        if self.backend_mode == "dsh" and self.group_chat_only:
+            log(
+                "拒绝启动：backend.mode=dsh 是带本机权限的 agent，群里只允许聊天/查资料。"
+                "请改成 workbuddy 或 api。",
+                "error",
+            )
+            return
         self.open_wechat()
         self.groups = self.resolve_groups()
         if not self.groups:

@@ -56,3 +56,9 @@ backend:
 
 wechat:
   send_verify: true
+
+security:
+  # 群里只允许「聊天 + 查资料」：禁止任何能操作本机的 agent（dsh 后端）
+  group_chat_only: true
+  # 允许机器人自己用 Bing 做只读搜索（不经过本地 agent）
+  web_lookup: true
