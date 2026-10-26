@@ -489,6 +489,7 @@ class Bot:
         self.group_chat_only = bool(sec.get("group_chat_only", True))
         self.web_lookup = bool(sec.get("web_lookup", True))
         self.stickers = None
+        self._sticker_lock = threading.Lock()
         st = nested(cfg, "stickers", {}) or {}
         if st.get("enabled", True):
             try:
@@ -834,19 +835,27 @@ class Bot:
         self._maybe_sticker(rule, text)
 
     def _maybe_sticker(self, rule: GroupRule, text: str) -> None:
-        """文字发出去之后，按概率补一张表情包（失败只记日志）。"""
+        """文字发出去之后，按概率补一张表情包；放到后台线程，绝不挡住下一条回复。"""
         if self.stickers is None or text.startswith("我这边出错了"):
             return
+        path = self.stickers.pick(text)
+        if path is None:
+            return
+        threading.Thread(target=self._send_sticker, args=(rule, path), daemon=True).start()
+
+    def _send_sticker(self, rule: GroupRule, path) -> None:
+        if not self._sticker_lock.acquire(timeout=90):
+            log("表情包：上一条还没发完，这次跳过", "warn")
+            return
         try:
-            path = self.stickers.pick(text)
-            if path is None:
-                return
             from wechatauto.guia import quick_send_image  # type: ignore
 
             quick_send_image(str(path), rule.nickname, verify=False)
             log(f"[表情] 发了一张：{path.name}")
         except Exception as exc:  # noqa: BLE001
             log(f"表情包发送失败（忽略）：{exc}", "warn")
+        finally:
+            self._sticker_lock.release()
 
     # -- 主循环 ---------------------------------------------------
 

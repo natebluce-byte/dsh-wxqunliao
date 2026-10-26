@@ -137,18 +137,22 @@ state/persona/
 
 ## 表情包
 
-文字回复之后按概率补一张图（`state/stickers/`）：
+文字回复之后按概率补一张图（`state/stickers/`）。
 
-```
-怼_哼.png   怼_就这？.png   无语_无语.png
-笑_笑死.png  溜_溜了.png    赞_牛.png
+**默认素材**：鲸鱼娘「默认表情」10 张（收到！/ 谢谢你~ / 我来啦！/ 辛苦啦 / 晚安安 / 早安~ / 喝奶茶中… / 嗯…? / 哼！/ 好困…），
+来自 [FeWOO/DeepSeek-meme](https://github.com/FeWOO/DeepSeek-meme) 的 `assets/default` 包（MIT），由 `fetch_stickers.py` 下载并转成 PNG：
+
+```powershell
+python fetch_stickers.py          # 下载到 state/stickers/（不入库）
 ```
 
 - 文件名前缀就是情绪分类（怼 / 无语 / 笑 / 溜 / 赞），按回复里的关键词选；
-- 目录为空时，首次启动会用 Pillow 生成一组内置文字卡，开箱可用；
+- 目录为空且没下载素材时，会用 Pillow 生成一组内置文字卡兜底；
 - 想换成自己的图：直接往目录丢 `分类_名字.png|jpg|gif`，前缀对得上就会用；
 - 频率在 `config.yaml` 的 `stickers.chance`（默认 0.35），设 0 关闭；
-- 发送走 `quick_send_image`，和文字一样依赖微信窗口可被唤起。
+- 发送在后台线程里做，**不会挡住下一条文字回复**；和文字一样依赖微信窗口可被唤起。
+
+> 素材版权归原作者；默认包随上游 MIT 分发。社区二创包（`assets/community`）版权归各原作者，本项目**没有**打包，需要的话自行确认授权后放进 `state/stickers/`。
 
 ## 怼人开关
 
